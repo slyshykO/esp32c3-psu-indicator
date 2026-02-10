@@ -13,9 +13,19 @@ use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
+use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::spi::{
+    Mode as SpiMode,
+    master::{Config as SpiConfig, Spi},
+};
+use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::ble::controller::BleConnector;
 use esp32c3_psu_indicator::wifi_scan_task;
+use embedded_hal_bus::spi::ExclusiveDevice;
+use mcp25xx::bitrates::clock_16mhz::CNF_500K_BPS;
+use mcp25xx::registers::{OperationMode, RXB0CTRL, RXM};
+use mcp25xx::{Config as McpConfig, MCP25xx};
 use trouble_host::prelude::*;
 use {esp_backtrace as _, esp_println as _};
 
@@ -50,6 +60,31 @@ async fn main(spawner: Spawner) -> ! {
 
     info!("Embassy initialized!");
 
+    let spi = Spi::new(
+        peripherals.SPI2,
+        SpiConfig::default()
+            .with_frequency(Rate::from_mhz(1))
+            .with_mode(SpiMode::_0),
+    )
+    .expect("SPI init failed: clock or mode out of range")
+    .with_sck(peripherals.GPIO8)
+    .with_mosi(peripherals.GPIO10)
+    .with_miso(peripherals.GPIO9);
+
+    let cs = Output::new(peripherals.GPIO20, Level::High, OutputConfig::default());
+    let spi_dev =
+        ExclusiveDevice::new_no_delay(spi, cs).expect("SPI device init failed: CS pin invalid");
+
+    let mut mcp25xx = MCP25xx { spi: spi_dev };
+    let mcp_config = McpConfig::default()
+        .mode(OperationMode::NormalOperation)
+        .bitrate(CNF_500K_BPS)
+        .receive_buffer_0(RXB0CTRL::default().with_rxm(RXM::ReceiveAny));
+    mcp25xx
+        .apply_config(&mcp_config)
+        .expect("MCP2515 config failed: check wiring/oscillator/bitrate");
+    info!("MCP2515 configured over SPI.");
+
     let radio_init = Box::leak(Box::new(
         esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
     ));
@@ -57,7 +92,8 @@ async fn main(spawner: Spawner) -> ! {
         esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
             .expect("Failed to initialize Wi-Fi controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
-    let transport = BleConnector::new(radio_init, peripherals.BT, Default::default()).unwrap();
+    let transport = BleConnector::new(radio_init, peripherals.BT, Default::default())
+        .expect("BLE transport init failed: controller not ready");
     let ble_controller = ExternalController::<_, 1>::new(transport);
     let mut resources: HostResources<DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX> =
         HostResources::new();

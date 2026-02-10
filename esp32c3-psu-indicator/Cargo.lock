@@ -504,6 +504,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-hal-bus"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513e0b3a8fb7d3013a8ae17a834283f170deaf7d0eeab0a7c1a36ad4dd356d22"
+dependencies = [
+ "critical-section",
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "embedded-io"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,6 +938,7 @@ dependencies = [
  "embassy-executor",
  "embassy-net",
  "embassy-time",
+ "embedded-hal-bus",
  "embedded-io 0.7.1",
  "embedded-io-async 0.7.0",
  "esp-alloc",
@@ -1252,9 +1263,9 @@ checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
 name = "mcp25xx"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d422fcb030322dff6e6591f3fd7416bf1456b4b2fe9b8bcda12ee1c5ff9f17a0"
+checksum = "3f9e29b5bdb35110be37b2a288f6b6fa9cbc9ec33abcbb4fbd18109b339e8eac"
 dependencies = [
  "embedded-can",
  "embedded-hal 1.0.0",
