@@ -12,6 +12,7 @@ use bt_hci::controller::ExternalController;
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
+use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::spi::{
@@ -20,9 +21,9 @@ use esp_hal::spi::{
 };
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
+use esp_hal::tsens::{Config as TempSensorConfig, TemperatureSensor};
 use esp_radio::ble::controller::BleConnector;
 use esp32c3_psu_indicator::wifi_scan_task;
-use embedded_hal_bus::spi::ExclusiveDevice;
 use mcp25xx::bitrates::clock_16mhz::CNF_500K_BPS;
 use mcp25xx::registers::{OperationMode, RXB0CTRL, RXM};
 use mcp25xx::{Config as McpConfig, MCP25xx};
@@ -48,6 +49,9 @@ async fn main(spawner: Spawner) -> ! {
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
+
+    let temp_sensor = TemperatureSensor::new(peripherals.TSENS, TempSensorConfig::default())
+        .expect("Failed to initialize internal temperature sensor");
 
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 66320);
     // COEX needs more RAM - so we've added some more
@@ -86,7 +90,7 @@ async fn main(spawner: Spawner) -> ! {
     info!("MCP2515 configured over SPI.");
 
     let radio_init = Box::leak(Box::new(
-        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
+        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller"),
     ));
     let (wifi_controller, _interfaces) =
         esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
@@ -103,7 +107,21 @@ async fn main(spawner: Spawner) -> ! {
 
     let mut cnt = 0;
     loop {
-        info!("Hello world! #{}", cnt);
+        let temp = temp_sensor.get_temperature().to_celsius();
+        let temp_scaled = temp * 10.0;
+        let temp_tenths = if temp_scaled >= 0.0 {
+            (temp_scaled + 0.5) as i32
+        } else {
+            (temp_scaled - 0.5) as i32
+        };
+        let sign = if temp_tenths < 0 { "-" } else { "" };
+        let temp_abs_tenths = temp_tenths.abs();
+        let temp_whole = temp_abs_tenths / 10;
+        let temp_frac = temp_abs_tenths % 10;
+        info!(
+            "heartbeat #{} | chip temp: {=str}{=i32}.{=i32} C",
+            cnt, sign, temp_whole, temp_frac
+        );
         cnt += 1;
         Timer::after(Duration::from_secs(1)).await;
     }
