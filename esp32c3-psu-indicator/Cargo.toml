@@ -55,6 +55,7 @@ esp-radio = { version = "=1.0.0-beta.1", features = [
   "unstable",
   "wifi",
 ] }
+
 smoltcp = { version = "0.14", default-features = false, features = [
   "defmt",
   "medium-ethernet",
@@ -68,6 +69,7 @@ smoltcp = { version = "0.14", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
+
 trouble-host = { version = "0.8", features = ["gatt"] }
 
 critical-section = "1.2.0"
