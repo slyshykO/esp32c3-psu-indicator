@@ -86,11 +86,8 @@ async fn main(spawner: Spawner) -> ! {
         .expect("MCP2515 config failed: check wiring/oscillator/bitrate");
     info!("MCP2515 configured over SPI.");
 
-    let radio_init = Box::leak(Box::new(
-        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller"),
-    ));
-    let (wifi_controller, _interfaces) =
-        esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
+    let wifi_controller =
+        esp_radio::wifi::WifiController::new(peripherals.WIFI, Default::default())
             .expect("Failed to initialize Wi-Fi controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
     let transport = BleConnector::new(peripherals.BT, Default::default())
