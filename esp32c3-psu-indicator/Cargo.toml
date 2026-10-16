@@ -23,13 +23,6 @@ esp-rtos = { version = "0.4", features = [
 defmt                  = "1.2"
 esp-bootloader-esp-idf = { version = "0.6", features = ["defmt", "esp32c3"] }
 
-embassy-net = { version = "0.9", features = [
-  "defmt",
-  "dhcpv4",
-  "medium-ethernet",
-  "tcp",
-  "udp",
-] }
 embedded-io = { version = "0.7.1", features = ["defmt"] }
 embedded-io-async = { version = "0.7.0", features = ["defmt"] }
 esp-alloc = { version = "0.11", features = ["defmt"] }
@@ -54,20 +47,6 @@ esp-radio = { version = "=1.0.0-beta.1", features = [
   "esp32c3",
   "unstable",
   "wifi",
-] }
-
-smoltcp = { version = "0.14", default-features = false, features = [
-  "defmt",
-  "medium-ethernet",
-  "multicast",
-  "proto-dhcpv4",
-  "proto-dns",
-  "proto-ipv4",
-  "socket-dns",
-  "socket-icmp",
-  "socket-raw",
-  "socket-tcp",
-  "socket-udp",
 ] }
 
 trouble-host = { version = "0.8", features = ["gatt"] }
