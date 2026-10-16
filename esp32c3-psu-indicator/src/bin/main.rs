@@ -7,7 +7,6 @@
 )]
 #![deny(clippy::large_stack_frames)]
 
-use alloc::boxed::Box;
 use bt_hci::controller::ExternalController;
 use defmt::info;
 use embassy_executor::Spawner;
@@ -54,9 +53,7 @@ async fn main(spawner: Spawner) -> ! {
     esp_alloc::heap_allocator!(size: 64 * 1024);
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    let sw_interrupt =
-        esp_hal::interrupt::software::SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
-    esp_rtos::start(timg0.timer0, sw_interrupt.software_interrupt0);
+    esp_rtos::start(timg0.timer0, peripherals.FROM_CPU_INTR0);
 
     info!("Embassy initialized!");
 
@@ -85,21 +82,18 @@ async fn main(spawner: Spawner) -> ! {
         .expect("MCP2515 config failed: check wiring/oscillator/bitrate");
     info!("MCP2515 configured over SPI.");
 
-    let radio_init = Box::leak(Box::new(
-        esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller")
-    ));
-    let (wifi_controller, _interfaces) =
-        esp_radio::wifi::new(radio_init, peripherals.WIFI, Default::default())
+    let wifi_controller =
+        esp_radio::wifi::WifiController::new(peripherals.WIFI, Default::default())
             .expect("Failed to initialize Wi-Fi controller");
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
-    let transport = BleConnector::new(radio_init, peripherals.BT, Default::default())
+    let transport = BleConnector::new(peripherals.BT, Default::default())
         .expect("BLE transport init failed: controller not ready");
     let ble_controller = ExternalController::<_, 1>::new(transport);
     let mut resources: HostResources<DefaultPacketPool, CONNECTIONS_MAX, L2CAP_CHANNELS_MAX> =
         HostResources::new();
     let _stack = trouble_host::new(ble_controller, &mut resources);
 
-    spawner.spawn(wifi_scan_task(wifi_controller)).ok();
+    spawner.spawn(wifi_scan_task(wifi_controller).expect("Failed to allocate Wi-Fi scan task"));
 
     let mut cnt = 0;
     loop {

@@ -2,32 +2,28 @@
 
 use defmt::info;
 use embassy_time::{Duration, Timer};
-use esp_radio::wifi::{ClientConfig, ModeConfig, ScanConfig, WifiController};
+use esp_radio::wifi::{Config, WifiController, scan::ScanConfig, sta::StationConfig};
 
 #[embassy_executor::task]
 pub async fn wifi_scan_task(mut wifi_controller: WifiController<'static>) {
-	let mode_config = ModeConfig::Client(ClientConfig::default());
+	// Applying station configuration also starts Wi-Fi in the new radio API.
+	let mode_config = Config::Station(StationConfig::default());
 	if let Err(err) = wifi_controller.set_config(&mode_config) {
 		info!("Wi-Fi config failed: {:?}", err);
-		return;
-	}
-
-	if let Err(err) = wifi_controller.start_async().await {
-		info!("Wi-Fi start failed: {:?}", err);
 		return;
 	}
 
 	loop {
 		info!("Starting Wi-Fi scan...");
 		match wifi_controller
-			.scan_with_config_async(ScanConfig::default())
+			.scan_async(&ScanConfig::default())
 			.await
 		{
 			Ok(aps) => {
 				info!("Found {} networks", aps.len());
 				for ap in aps {
 					info!(
-						"ssid={=str} rssi={} ch={} auth={:?}",
+						"ssid={:?} rssi={} ch={} auth={:?}",
 						ap.ssid,
 						ap.signal_strength,
 						ap.channel,
